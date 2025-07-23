@@ -42,7 +42,7 @@ def predict():
         })
     else:
         spam_prediction = modelNaive.predict(mail_text_vectorized)[0]
-        if spam_prediction == 0:
+        if spam_prediction == 1:
             return jsonify({
                 "prediction": final_prediction,
                 "confidence": f"{confidence}%",
