@@ -2,15 +2,20 @@ from flask import Flask, request, jsonify
 import pickle
 from joblib import load
 import numpy as np
+from deadLinePrediction import extract_deadline_date
 
 app = Flask(__name__)
 
 # Load models
 with open("mailByNB.pkl", "rb") as f:
-    model = pickle.load(f)  # full pipeline (vectorizer + classifier)
+    model = pickle.load(f) 
 
-vectorizer = load('vectorizer.pkl')         # for modelNaive
-modelNaive = load('modelNaive.pkl')         # spam filter
+
+# for modelNaive
+vectorizer = load('vectorizer.pkl')
+
+# spam filter
+modelNaive = load('modelNaive.pkl')         
 
 @app.route('/')
 def home():
@@ -23,18 +28,20 @@ def predict():
     if 'body' not in data:
         return jsonify({"error": "Missing 'body' field in JSON"}), 400
 
-    mail_body = data['body']  # this is raw email text
-    # Step 1: Use full classification model (expects raw string)
+    mail_body = data['body']  
+    
+    #Use full classification model 
     final_prediction = model.predict([mail_body])[0]
     probabilities = model.predict_proba([mail_body])[0]
     class_index = np.argmax(probabilities)
     confidence = round(probabilities[class_index] * 100, 2)
-    # Step 2: Use Naive Bayes spam filter
+
+    #Use Naive Bayes spam filter
     mail_text_vectorized = vectorizer.transform([mail_body])
     spam_prediction = modelNaive.predict(mail_text_vectorized)[0]
 
     if final_prediction == 'others':
-        # Step 2: Use full classification model (expects raw string)
+        # other mail's block
 
         return jsonify({
             "prediction": final_prediction,
@@ -42,17 +49,19 @@ def predict():
         })
     else:
         spam_prediction = modelNaive.predict(mail_text_vectorized)[0]
-        if spam_prediction == 1:
+        if spam_prediction == 0:
             return jsonify({
                 "prediction": final_prediction,
                 "confidence": f"{confidence}%",
-                "spam":"no_spam"
+                "spam":"no_spam",
+                "deadline":extract_deadline_date(mail_body)
             })
         else:
             return jsonify({
                 "prediction": final_prediction,
                 "confidence": f"{confidence}%",
-                "spam":"spam"
+                "spam":"spam",
+                "deadline":extract_deadline_date(mail_body)
             })
 
 
